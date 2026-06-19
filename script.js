@@ -1,253 +1,300 @@
-// 預設講義狀態表資料
-const defaultExample = [
-    { present: 'A', x: '0', next: 'A', z: '0' },
-    { present: 'A', x: '1', next: 'B', z: '0' },
-    { present: 'B', x: '0', next: 'C', z: '1' },
-    { present: 'B', x: '1', next: 'A', z: '0' },
-    { present: 'C', x: '0', next: 'A', z: '1' },
-    { present: 'C', x: '1', next: 'C', z: '1' }
+/**
+ * Sequential Circuit Design Automation System
+ * 具備動態邏輯演算 (Boolean Minimization) 與動態解析繪圖引擎
+ */
+
+// 定義系統固定的 Present State 與 X (符合專題要求：不可變動)
+const fixedInputs = [
+    { present: 'A', x: '0' }, { present: 'A', x: '1' },
+    { present: 'B', x: '0' }, { present: 'B', x: '1' },
+    { present: 'C', x: '0' }, { present: 'C', x: '1' }
 ];
 
+// 預設的 Next State 與 Z
+const defaultOutputs = [
+    { next: 'A', z: '0' }, { next: 'B', z: '0' },
+    { next: 'C', z: '1' }, { next: 'A', z: '0' },
+    { next: 'A', z: '1' }, { next: 'C', z: '1' }
+];
+
+// 狀態編碼: A=00, B=01, C=10
+const stateCode = { 'A': [0, 0], 'B': [0, 1], 'C': [1, 0] };
+
 window.onload = function() {
-    loadExample();
-    generateSystem(); 
+    initTable();
+    generateSystem();
 };
 
-// 載入預設資料
-function loadExample() {
+// 建立具有防呆下拉選單的表格
+function initTable() {
     const tbody = document.getElementById('stateTableBody');
     tbody.innerHTML = '';
-    defaultExample.forEach(row => {
+    fixedInputs.forEach((row, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><input type="text" class="cell-input" value="${row.present}"></td>
-            <td style="font-weight:bold; background:#f8fafc;">${row.x}</td>
-            <td><input type="text" class="cell-input" value="${row.next}"></td>
-            <td><input type="text" class="cell-input" value="${row.z}"></td>
+            <td class="fixed-cell">${row.present}</td>
+            <td class="fixed-cell">${row.x}</td>
+            <td>
+                <select id="next_${i}" class="cell-select">
+                    <option value="A" ${defaultOutputs[i].next === 'A' ? 'selected' : ''}>A</option>
+                    <option value="B" ${defaultOutputs[i].next === 'B' ? 'selected' : ''}>B</option>
+                    <option value="C" ${defaultOutputs[i].next === 'C' ? 'selected' : ''}>C</option>
+                </select>
+            </td>
+            <td>
+                <select id="z_${i}" class="cell-select">
+                    <option value="0" ${defaultOutputs[i].z === '0' ? 'selected' : ''}>0</option>
+                    <option value="1" ${defaultOutputs[i].z === '1' ? 'selected' : ''}>1</option>
+                </select>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// 清空表格
-function clearTable() {
-    const tbody = document.getElementById('stateTableBody');
-    tbody.innerHTML = '';
-    for(let i = 0; i < 6; i++) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="text" class="cell-input" value=""></td>
-            <td style="font-weight:bold; background:#f8fafc;">${i % 2 === 0 ? '0' : '1'}</td>
-            <td><input type="text" class="cell-input" value=""></td>
-            <td><input type="text" class="cell-input" value=""></td>
-        `;
-        tbody.appendChild(tr);
-    }
-}
+function resetTable() { initTable(); generateSystem(); }
 
-// 主程式進入點
+// 系統核心主控台
 function generateSystem() {
     const ffType = document.querySelector('input[name="ffType"]:checked').value;
     const modelType = document.querySelector('input[name="modelType"]:checked').value;
-    processLogicAndKMap(ffType, modelType);
-    drawCircuitDiagram(ffType, modelType);
+    
+    // 1. 從 UI 讀取真值表
+    const truthTable = readTruthTable();
+    
+    // 2. 依據選擇的正反器類型，計算激勵真值表
+    const excitation = calculateExcitation(truthTable, ffType);
+    
+    // 3. 進行布林邏輯最佳化 (化簡方程式)
+    const equations = minimizeLogic(excitation, ffType);
+    
+    // 4. 更新畫面 (Output 1)
+    renderOutput1(equations, excitation, ffType);
+    
+    // 5. 動態解析方程式並畫出電路圖 (Output 2)
+    drawDynamicCircuit(equations, ffType, modelType);
 }
 
-// 產生方程式 (Output 1)
-function processLogicAndKMap(ffType, modelType) {
-    const eqTbody = document.getElementById('eq-tbody');
-    const kmapContainer = document.getElementById('kmap-container');
-    eqTbody.innerHTML = ''; kmapContainer.innerHTML = '';
+// 讀取 UI 輸入，轉化為 8 個 Minterm 的陣列 (0~7)
+// 陣列索引定義: bit2=Q1, bit1=Q0, bit0=X
+function readTruthTable() {
+    let tt = Array(8).fill(null); 
+    // 狀態 11 (Minterm 6, 7) 在 A,B,C 系統中不存在，設為 Don't Care ('X')
+    tt[6] = { nq1: 'X', nq0: 'X', z: 'X' };
+    tt[7] = { nq1: 'X', nq0: 'X', z: 'X' };
 
-    if (ffType === 'jk') {
-        const jkEquations = [
-            { ff: 'FF for Q1', input: 'J1', eq: "J1 = X · Q0" },
-            { ff: 'FF for Q1', input: 'K1', eq: "K1 = X' + Q0" },
-            { ff: 'FF for Q0', input: 'J0', eq: "J0 = Q1 · X" },
-            { ff: 'FF for Q0', input: 'K0', eq: "K0 = X" }
-        ];
-        jkEquations.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${item.ff}</td><td>${item.input}</td><td style="color:#2563eb; font-weight:bold;">${item.eq}</td>`;
-            eqTbody.appendChild(tr);
-        });
-        kmapContainer.innerHTML = `
-            <div style="font-size:0.85rem; text-align:center;">
-                <p style="margin-bottom:8px; font-weight:600; color:#475569;">K-Map Grouping Example (J1 Equation)</p>
-                <table style="width:80%; margin:auto; background: #ffffff;">
-                    <tr><th>Q1 \\ X Q0</th><th>00</th><th>01</th><th style="background:#dcfce7; color:#16a34a;">11</th><th>10</th></tr>
-                    <tr><th>0</th><td>0</td><td>0</td><td style="border:2px solid #16a34a; background:#bbf7d0; font-weight:bold; color:#15803d;">1</td><td>0</td></tr>
-                    <tr><th>1</th><td>X</td><td>X</td><td style="border-left:2px solid #16a34a; border-right:2px solid #16a34a; background:#dcfce7;">X</td><td>X</td></tr>
-                </table>
-                <p style="margin-top:6px; color:#16a34a; font-weight:bold;">(Simplified) J1 = X · Q0</p>
-            </div>
-        `;
-    } else {
-        const dEquations = [
-            { ff: 'FF for Q1', input: 'D1', eq: "D1 = X · Q0 · Q1' + X' · Q1" },
-            { ff: 'FF for Q0', input: 'D0', eq: "D0 = X' · Q1 · Q0' + X · Q1" }
-        ];
-        dEquations.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${item.ff}</td><td>${item.input}</td><td style="color:#ea580c; font-weight:bold;">${item.eq}</td>`;
-            eqTbody.appendChild(tr);
-        });
-        kmapContainer.innerHTML = `
-            <div style="font-size:0.85rem; text-align:center; padding:15px; border:1px dashed #ea580c; border-radius:4px;">
-                <p style="font-weight:bold; color:#ea580c; margin-bottom:5px;">D Flip-Flop (Next State Logic)</p>
-                <p style="color:#475569;">D = Q(t+1) = J·Q' + K'·Q</p>
-                <p style="margin-top:5px; font-size:0.8rem; color:#64748b;">* Circuit dynamically rewires for Combinational Logic.</p>
-            </div>
-        `;
+    for(let i=0; i<6; i++) {
+        const pres = fixedInputs[i].present;
+        const x = parseInt(fixedInputs[i].x);
+        const next = document.getElementById(`next_${i}`).value;
+        const z = document.getElementById(`z_${i}`).value;
+        
+        const q = stateCode[pres];
+        const nq = stateCode[next];
+        const index = (q[0] << 2) | (q[1] << 1) | x;
+        
+        tt[index] = { q1: q[0], q0: q[1], x: x, nq1: nq[0], nq0: nq[1], z: parseInt(z) };
     }
+    return tt;
 }
 
-// 繪製具備實體佈線邏輯的動態電路圖 (Output 2)
-function drawCircuitDiagram(ffType, modelType) {
+// 產生正反器激勵表 (Excitation Table)
+function calculateExcitation(tt, ffType) {
+    let ex = { J1: [], K1: [], J0: [], K0: [], D1: [], D0: [], Z: [] };
+    
+    for(let i=0; i<8; i++) {
+        let row = tt[i];
+        if (row.nq1 === 'X') { // Don't Care
+            ['J1','K1','J0','K0','D1','D0','Z'].forEach(k => ex[k].push('X'));
+            continue;
+        }
+        ex.Z.push(row.z);
+        
+        if (ffType === 'd') {
+            ex.D1.push(row.nq1);
+            ex.D0.push(row.nq0);
+        } else {
+            // JK 轉換邏輯
+            ex.J1.push(row.q1 === 0 ? row.nq1 : 'X');
+            ex.K1.push(row.q1 === 1 ? (1 - row.nq1) : 'X');
+            ex.J0.push(row.q0 === 0 ? row.nq0 : 'X');
+            ex.K0.push(row.q0 === 1 ? (1 - row.nq0) : 'X');
+        }
+    }
+    return ex;
+}
+
+// 貪婪演算法布林化簡器 (3 變數專用)
+function minimizeLogic(ex, ffType) {
+    // 預先定義所有可能的 Prime Implicants (Q1, Q0, X)
+    const implicants = [
+        { term: "1", mask: 0b000, val: 0b000, size: 8 }, // 全包
+        { term: "Q1", mask: 0b100, val: 0b100, size: 4 }, { term: "Q1'", mask: 0b100, val: 0b000, size: 4 },
+        { term: "Q0", mask: 0b010, val: 0b010, size: 4 }, { term: "Q0'", mask: 0b010, val: 0b000, size: 4 },
+        { term: "X",  mask: 0b001, val: 0b001, size: 4 }, { term: "X'",  mask: 0b001, val: 0b000, size: 4 },
+        { term: "Q1·Q0", mask: 0b110, val: 0b110, size: 2 }, { term: "Q1·Q0'", mask: 0b110, val: 0b100, size: 2 },
+        { term: "Q1'·Q0", mask: 0b110, val: 0b010, size: 2 }, { term: "Q1'·Q0'", mask: 0b110, val: 0b000, size: 2 },
+        { term: "Q1·X", mask: 0b101, val: 0b101, size: 2 }, { term: "Q1·X'", mask: 0b101, val: 0b100, size: 2 },
+        { term: "Q1'·X", mask: 0b101, val: 0b001, size: 2 }, { term: "Q1'·X'", mask: 0b101, val: 0b000, size: 2 },
+        { term: "Q0·X", mask: 0b011, val: 0b011, size: 2 }, { term: "Q0·X'", mask: 0b011, val: 0b010, size: 2 },
+        { term: "Q0'·X", mask: 0b011, val: 0b001, size: 2 }, { term: "Q0'·X'", mask: 0b011, val: 0b000, size: 2 },
+        { term: "Q1·Q0·X", mask: 0b111, val: 0b111, size: 1 }, { term: "Q1'·Q0'·X'", mask: 0b111, val: 0b000, size: 1 } // 略過部分 size 1，通常不會用到那麼細
+    ];
+
+    function solve(truthArr) {
+        let ones = [], dcs = [];
+        for(let i=0; i<8; i++) {
+            if(truthArr[i] == 1) ones.push(i);
+            if(truthArr[i] === 'X') dcs.push(i);
+        }
+        if (ones.length === 0) return "0";
+        if (ones.length + dcs.length === 8) return "1";
+
+        let selected = [];
+        let covered = new Set();
+        
+        // 貪婪挑選能覆蓋最多剩餘 1 的 Implicant
+        while(covered.size < ones.length) {
+            let bestImp = null, bestCover = [];
+            for (let imp of implicants) {
+                let currentCover = [];
+                let valid = true;
+                for (let i=0; i<8; i++) {
+                    if ((i & imp.mask) === imp.val) {
+                        if (truthArr[i] == 0) { valid = false; break; } // 碰到 0 則此圈不合法
+                        if (truthArr[i] == 1 && !covered.has(i)) currentCover.push(i);
+                    }
+                }
+                if (valid && currentCover.length > (bestCover ? bestCover.length : 0)) {
+                    bestImp = imp; bestCover = currentCover;
+                }
+            }
+            if (!bestImp) break; // 防呆
+            selected.push(bestImp.term);
+            bestCover.forEach(idx => covered.add(idx));
+        }
+        return selected.join(" + ");
+    }
+
+    let eq = {};
+    if(ffType === 'jk') {
+        eq.J1 = solve(ex.J1); eq.K1 = solve(ex.K1);
+        eq.J0 = solve(ex.J0); eq.K0 = solve(ex.K0);
+    } else {
+        eq.D1 = solve(ex.D1); eq.D0 = solve(ex.D0);
+    }
+    eq.Z = solve(ex.Z);
+    return eq;
+}
+
+// 輸出畫面 1 (方程式與卡諾圖)
+function renderOutput1(eq, ex, ffType) {
+    const tbody = document.getElementById('eq-tbody');
+    tbody.innerHTML = '';
+    
+    let keys = ffType === 'jk' ? ['J1','K1','J0','K0'] : ['D1','D0'];
+    let firstKey = keys[0];
+
+    keys.forEach(k => {
+        let tr = document.createElement('tr');
+        tr.innerHTML = `<td>FF for ${k.charAt(1)}</td><td style="font-weight:bold;">${k}</td><td style="color:#2563eb; font-weight:bold;">${k} = ${eq[k]}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    // 繪製第一個方程式的卡諾圖示意
+    const arr = ex[firstKey];
+    const kmapHTML = `
+        <div style="font-size:0.85rem; text-align:center;">
+            <p style="margin-bottom:8px; font-weight:600; color:#475569;">K-Map for ${firstKey}</p>
+            <table style="width:80%; margin:auto; background: #ffffff;">
+                <tr><th>Q1 \\ X Q0</th><th>00</th><th>01</th><th>11</th><th>10</th></tr>
+                <tr><th>0</th><td>${arr[0]}</td><td>${arr[1]}</td><td>${arr[3]}</td><td>${arr[2]}</td></tr>
+                <tr><th>1</th><td>${arr[4]}</td><td>${arr[5]}</td><td>${arr[7]}</td><td>${arr[6]}</td></tr>
+            </table>
+            <p style="margin-top:6px; color:#16a34a; font-weight:bold;">${firstKey} = ${eq[firstKey]}</p>
+        </div>
+    `;
+    document.getElementById('kmap-container').innerHTML = kmapHTML;
+}
+
+// ========================================================
+// 動態解析與繪圖引擎 (Output 2)
+// ========================================================
+function drawDynamicCircuit(eq, ffType, modelType) {
     const canvas = document.getElementById('circuitCanvas');
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 設定畫筆樣式 (IEEE 標準)
-    ctx.strokeStyle = '#0f172a'; 
-    ctx.lineWidth = 2; 
-    ctx.fillStyle = '#0f172a'; 
-    ctx.font = 'bold 12px Courier New';
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.fillStyle = '#0f172a'; ctx.font = 'bold 12px Courier New';
 
-    // 1. 繪製輸入訊號匯流排 (Bus)
-    ctx.fillText("X", 10, 35);
-    ctx.beginPath(); ctx.moveTo(30, 30); ctx.lineTo(600, 30); ctx.stroke(); // X 主線
+    // 基礎骨架：X 與 CLK 線
+    ctx.fillText("X", 10, 35); ctx.beginPath(); ctx.moveTo(30, 30); ctx.lineTo(600, 30); ctx.stroke();
+    ctx.fillText("CLK", 5, 385); ctx.beginPath(); ctx.moveTo(35, 380); ctx.lineTo(550, 380); ctx.stroke();
+
+    const q1X = 260, q1Y = 160;
+    const q0X = 460, q0Y = 160;
+
+    // 畫出正反器
+    if(ffType === 'jk') {
+        drawJKFlipFlop(ctx, q1X, q1Y, "Q1"); drawJKFlipFlop(ctx, q0X, q0Y, "Q0");
+        // 動態繪製輸入端線路
+        drawPinLogic(ctx, eq.J1, 160, 175, q1X, 185);
+        drawPinLogic(ctx, eq.K1, 160, 235, q1X, 245);
+        drawPinLogic(ctx, eq.J0, 360, 175, q0X, 185);
+        drawPinLogic(ctx, eq.K0, 360, 235, q0X, 245);
+    } else {
+        drawDFlipFlop(ctx, q1X, q1Y, "Q1"); drawDFlipFlop(ctx, q0X, q0Y, "Q0");
+        drawPinLogic(ctx, eq.D1, 160, 205, q1X, 215);
+        drawPinLogic(ctx, eq.D0, 360, 205, q0X, 215);
+    }
+
+    // CLK 接線
+    ctx.beginPath(); ctx.moveTo(290, 380); ctx.lineTo(290, 260); ctx.stroke(); drawDot(ctx, 290, 380);
+    ctx.beginPath(); ctx.moveTo(490, 380); ctx.lineTo(490, 260); ctx.stroke(); drawDot(ctx, 490, 380);
+}
+
+// 解析布林字串並動態畫出對應的邏輯閘 (AND, OR) 與接線
+function drawPinLogic(ctx, equation, startX, startY, pinX, pinY) {
+    ctx.beginPath();
     
-    // 繪製 X' (NOT 閘) 線路
-    drawNOTGate(ctx, 45, 50);
-    ctx.beginPath(); 
-    ctx.moveTo(35, 30); ctx.lineTo(35, 55); ctx.lineTo(45, 55); // 連接 X 到 NOT
-    ctx.moveTo(70, 55); ctx.lineTo(600, 55); ctx.stroke(); // X' 主線
-    ctx.fillText("X'", 10, 60);
-    drawDot(ctx, 35, 30); // 連接點
-
-    // 繪製 CLK 匯流排
-    ctx.fillText("CLK", 5, 385);
-    ctx.beginPath(); ctx.moveTo(35, 380); ctx.lineTo(550, 380); ctx.stroke();
-
-    // 2. 佈線邏輯 (依據正反器類型)
-    if (ffType === 'jk') {
-        // 定義元件座標
-        const q1X = 260, q1Y = 160;
-        const q0X = 460, q0Y = 160;
-
-        drawJKFlipFlop(ctx, q1X, q1Y, "Q1"); 
-        drawJKFlipFlop(ctx, q0X, q0Y, "Q0");
-
-        // --- 佈線 J1 = X · Q0 ---
-        drawANDGate(ctx, 160, 170, "AND");
-        ctx.beginPath(); 
-        // X 接進 AND 上端
-        ctx.moveTo(150, 30); ctx.lineTo(150, 175); ctx.lineTo(160, 175); 
-        drawDot(ctx, 150, 30);
-        // Q0 回授拉線 (從 Q0 輸出端拉回 AND 下端)
-        ctx.moveTo(520, 185); ctx.lineTo(550, 185); ctx.lineTo(550, 110); 
-        ctx.lineTo(130, 110); ctx.lineTo(130, 195); ctx.lineTo(160, 195);
-        drawDot(ctx, 520, 185);
-        // AND 輸出接 J1
-        ctx.moveTo(195, 185); ctx.lineTo(q1X, 185);
-        ctx.stroke();
-
-        // --- 佈線 K1 = X' + Q0 ---
-        drawORGate(ctx, 160, 230, "OR");
-        ctx.beginPath();
-        // X' 接進 OR 上端
-        ctx.moveTo(140, 55); ctx.lineTo(140, 235); ctx.lineTo(160, 235);
-        drawDot(ctx, 140, 55);
-        // Q0 回授線向下分支給 OR 下端
-        ctx.moveTo(130, 195); ctx.lineTo(130, 255); ctx.lineTo(160, 255);
-        drawDot(ctx, 130, 195);
-        // OR 輸出接 K1
-        ctx.moveTo(195, 245); ctx.lineTo(q1X, 245);
-        ctx.stroke();
-
-        // --- 佈線 J0 = Q1 · X ---
-        drawANDGate(ctx, 380, 170, "AND");
-        ctx.beginPath();
-        // Q1 輸出接 AND 上端
-        ctx.moveTo(320, 185); ctx.lineTo(350, 185); ctx.lineTo(350, 175); ctx.lineTo(380, 175);
-        drawDot(ctx, 320, 185);
-        // X 再次接下端
-        ctx.moveTo(360, 30); ctx.lineTo(360, 195); ctx.lineTo(380, 195);
-        drawDot(ctx, 360, 30);
-        // AND 輸出接 J0
-        ctx.moveTo(415, 185); ctx.lineTo(q0X, 185);
-        ctx.stroke();
-
-        // --- 佈線 K0 = X ---
-        ctx.beginPath();
-        ctx.moveTo(440, 30); ctx.lineTo(440, 245); ctx.lineTo(q0X, 245);
-        drawDot(ctx, 440, 30);
-        ctx.stroke();
-
-        // --- 時脈 CLK 連線 ---
-        ctx.beginPath();
-        ctx.moveTo(290, 380); ctx.lineTo(290, 260); drawDot(ctx, 290, 380);
-        ctx.moveTo(490, 380); ctx.lineTo(490, 260); drawDot(ctx, 490, 380);
-        ctx.stroke();
-
-        // --- 輸出 Z (Mealy/Moore) ---
-        if (modelType === 'mealy') {
-            // Mealy Z = Q1 + Q0*X' (示意接線)
-            drawORGate(ctx, 580, 300, "Z");
-            ctx.beginPath();
-            ctx.moveTo(335, 185); ctx.lineTo(335, 305); ctx.lineTo(580, 305); // Q1 接 Z
-            ctx.moveTo(565, 185); ctx.lineTo(565, 325); ctx.lineTo(580, 325); // Q0 往下接
-            ctx.stroke();
-        } else {
-            // Moore 直接拉出 Z
-            ctx.beginPath(); ctx.moveTo(520, 185); ctx.lineTo(580, 185); ctx.stroke();
-            ctx.fillText("Output Z", 585, 190);
-        }
-
-    } else if (ffType === 'd') {
-        // D-FF 精簡佈線示意 (避免過度重疊)
-        drawDFlipFlop(ctx, 260, 160, "Q1"); 
-        drawDFlipFlop(ctx, 460, 160, "Q0");
-        
-        ctx.beginPath();
-        ctx.moveTo(180, 30); ctx.lineTo(180, 210); ctx.lineTo(260, 210);
-        ctx.moveTo(380, 30); ctx.lineTo(380, 210); ctx.lineTo(460, 210);
-        ctx.moveTo(290, 380); ctx.lineTo(290, 260); 
-        ctx.moveTo(490, 380); ctx.lineTo(490, 260);
-        ctx.stroke();
-        
-        ctx.fillStyle = '#ea580c';
-        ctx.fillText("[ Combinational Logic Block dynamically simplified for D-FF ]", 140, 330);
+    if (equation === "0" || equation === "1") {
+        // 直接接 VCC 或 GND (文字標示)
+        ctx.moveTo(pinX - 30, pinY); ctx.lineTo(pinX, pinY); ctx.stroke();
+        ctx.fillText(equation === "1" ? "VCC" : "GND", pinX - 55, pinY + 4);
+    } 
+    else if (equation.includes("+")) {
+        // 包含加號，畫 OR 閘
+        drawORGate(ctx, startX, startY - 10, "OR");
+        ctx.moveTo(startX + 35, startY + 5); ctx.lineTo(pinX, pinY); ctx.stroke();
+        ctx.fillStyle = '#2563eb'; ctx.fillText(equation, startX - 80, startY + 5); ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.moveTo(startX - 20, startY - 5); ctx.lineTo(startX, startY - 5); ctx.stroke(); // Input 1
+        ctx.beginPath(); ctx.moveTo(startX - 20, startY + 15); ctx.lineTo(startX, startY + 15); ctx.stroke(); // Input 2
+    } 
+    else if (equation.includes("·")) {
+        // 包含乘號，畫 AND 閘
+        drawANDGate(ctx, startX, startY - 10, "AND");
+        ctx.moveTo(startX + 35, startY + 5); ctx.lineTo(pinX, pinY); ctx.stroke();
+        ctx.fillStyle = '#2563eb'; ctx.fillText(equation, startX - 80, startY + 5); ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.moveTo(startX - 20, startY - 5); ctx.lineTo(startX, startY - 5); ctx.stroke(); // Input 1
+        ctx.beginPath(); ctx.moveTo(startX - 20, startY + 15); ctx.lineTo(startX, startY + 15); ctx.stroke(); // Input 2
+    } 
+    else {
+        // 單一變數直連
+        ctx.moveTo(startX, pinY); ctx.lineTo(pinX, pinY); ctx.stroke();
+        ctx.fillStyle = '#2563eb'; ctx.fillText(equation, startX - 30, pinY - 5); ctx.fillStyle = '#0f172a';
     }
 }
 
-// 繪製接點 (代表兩條線是相連的)
-function drawDot(ctx, x, y) {
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-}
+function drawDot(ctx, x, y) { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); }
 
-// 繪製 NOT 閘
-function drawNOTGate(ctx, x, y) {
-    ctx.beginPath();
-    ctx.moveTo(x, y); ctx.lineTo(x + 15, y + 5); ctx.lineTo(x, y + 10); ctx.closePath();
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(x + 18, y + 5, 3, 0, Math.PI*2); ctx.stroke();
-}
-
-// 繪製 JK 正反器
 function drawJKFlipFlop(ctx, x, y, label) {
     ctx.strokeRect(x, y, 60, 100);
     ctx.fillText("J", x + 5, y + 30); ctx.fillText("K", x + 5, y + 90);
     ctx.fillText("Q", x + 45, y + 30); ctx.fillText("Q'", x + 40, y + 90);
     ctx.fillText(label, x + 20, y - 8);
-    // 時脈三角形
     ctx.beginPath(); ctx.moveTo(x, y + 45); ctx.lineTo(x + 10, y + 50); ctx.lineTo(x, y + 55); ctx.stroke();
 }
 
-// 繪製 D 正反器
 function drawDFlipFlop(ctx, x, y, label) {
     ctx.strokeRect(x, y, 60, 100);
     ctx.fillText("D", x + 5, y + 55);
@@ -256,39 +303,22 @@ function drawDFlipFlop(ctx, x, y, label) {
     ctx.beginPath(); ctx.moveTo(x, y + 45); ctx.lineTo(x + 10, y + 50); ctx.lineTo(x, y + 55); ctx.stroke();
 }
 
-// 繪製 OR 閘 (貝氏曲線)
 function drawORGate(ctx, x, y, txt) {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + 15, y, x + 35, y + 15);
-    ctx.quadraticCurveTo(x + 15, y + 30, x, y + 30);
-    ctx.quadraticCurveTo(x + 10, y + 15, x, y);
-    ctx.stroke();
-    if(txt) ctx.fillText(txt, x + 10, y + 19);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x+15, y, x+35, y+15);
+    ctx.quadraticCurveTo(x+15, y+30, x, y+30); ctx.quadraticCurveTo(x+10, y+15, x, y); ctx.stroke();
+    if(txt) ctx.fillText(txt, x+10, y+19);
 }
 
-// 繪製 AND 閘
 function drawANDGate(ctx, x, y, txt) {
-    ctx.beginPath();
-    ctx.moveTo(x, y); ctx.lineTo(x + 20, y);
-    ctx.arc(x + 20, y + 15, 15, -Math.PI/2, Math.PI/2);
-    ctx.lineTo(x, y + 30); ctx.closePath();
-    ctx.stroke();
-    if(txt) ctx.fillText(txt, x + 5, y + 19);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+20, y);
+    ctx.arc(x+20, y+15, 15, -Math.PI/2, Math.PI/2); ctx.lineTo(x, y+30); ctx.closePath(); ctx.stroke();
+    if(txt) ctx.fillText(txt, x+5, y+19);
 }
 
-// 匯出圖檔
 function downloadPNG() {
-    const link = document.createElement('a');
-    link.download = 'Sequential_Circuit_Diagram.png';
-    link.href = document.getElementById('circuitCanvas').toDataURL("image/png");
-    link.click();
+    const link = document.createElement('a'); link.download = 'Sequential_Circuit_Diagram.png';
+    link.href = document.getElementById('circuitCanvas').toDataURL("image/png"); link.click();
 }
-
-// 匯出 PDF
 function exportPDF() {
-    html2pdf().set({
-        margin: 8, filename: '期末專題報告.pdf', image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    }).from(document.body).save();
+    html2pdf().set({ margin: 8, filename: '期末專題報告.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } }).from(document.body).save();
 }
