@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequential Circuit Design Automation System</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">⚙️ Sequential Circuit Design Automation System</div>
+        <div class="student-info">姓名：王大明 | 學號：B11000000</div> 
+    </header>
+
+    <div class="main-container">
+        <aside class="panel input-panel">
+            <div class="section-box">
+                <h3>1. MODEL TYPE</h3>
+                <label><input type="radio" name="modelType" value="mealy" checked> Mealy Model</label><br>
+                <label><input type="radio" name="modelType" value="moore"> Moore Model</label>
+            </div>
+
+            <div class="section-box">
+                <h3>2. FLIP-FLOP TYPE</h3>
+                <label><input type="radio" name="ffType" value="jk" checked> JK Flip-Flop</label><br>
+                <label><input type="radio" name="ffType" value="d"> D Flip-Flop (擴充)</label>
+            </div>
+
+            <div class="section-box">
+                <h3>3. STATE TABLE INPUT</h3>
+                <div class="input-group">
+                    <label>Input Variables</label>
+                    <input type="text" id="inputVars" value="X">
+                </div>
+                <div class="input-group">
+                    <label>Output Variables</label>
+                    <input type="text" id="outputVars" value="Z">
+                </div>
+                <table id="stateTable">
+                    <thead>
+                        <tr>
+                            <th>Present State</th>
+                            <th>X</th>
+                            <th>Next State</th>
+                            <th>Z</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>A</td><td>0</td><td>A</td><td>0</td></tr>
+                        <tr><td>A</td><td>1</td><td>B</td><td>0</td></tr>
+                        <tr><td>B</td><td>0</td><td>C</td><td>1</td></tr>
+                        <tr><td>B</td><td>1</td><td>A</td><td>0</td></tr>
+                        <tr><td>C</td><td>0</td><td>A</td><td>1</td></tr>
+                        <tr><td>C</td><td>1</td><td>C</td><td>1</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </aside>
+
+        <section class="panel output1-panel">
+            <div class="section-box">
+                <h3 class="blue-title">OUTPUT 1: FLIP-FLOP INPUT EQUATIONS</h3>
+                <div id="equations-container">
+                    <p>State Variables: Q1 Q0</p>
+                    <table class="result-table">
+                        <thead>
+                            <tr>
+                                <th>Flip-Flop</th>
+                                <th>Input</th>
+                                <th>Equation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eq-tbody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="section-box kmap-box">
+                <h3 class="blue-title">K-Map (Example)</h3>
+                <div id="kmap-container">
+                    </div>
+            </div>
+        </section>
+
+        <section class="panel output2-panel">
+            <div class="section-box">
+                <div class="output2-header">
+                    <h3 class="green-title">OUTPUT 2: SEQUENTIAL CIRCUIT DIAGRAM</h3>
+                    <button class="btn-icon" onclick="downloadPNG()">⬇ PNG 下載</button>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="circuitCanvas" width="500" height="400"></canvas>
+                </div>
+                <div class="info-footer">
+                    <p>• Circuit diagram is generated based on simplified equations.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <button class="btn-primary" onclick="generateSystem()">GENERATE</button>
+        <button class="btn-secondary" onclick="exportPDF()">📄 EXPORT REPORT (PDF)</button>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
