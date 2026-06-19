@@ -23,16 +23,17 @@ h3 { font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #334155;
 
 .input-group { margin-bottom: 10px; }
 .input-group label { display: block; font-size: 0.8rem; color: #475569; margin-bottom: 4px; }
-.input-group input { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; }
-.readonly-input { background-color: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+.input-group input { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: bold; }
 
 table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
 th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; }
 th { background-color: #f1f5f9; color: #334155; font-weight: 600; }
 .fixed-cell { font-weight: bold; background-color: #f8fafc; color: #475569; }
-.cell-select { width: 100%; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; background-color: white; font-weight: bold; outline: none; cursor: pointer; }
 
-/* K-map 切換專用下拉選單樣式 */
+/* 復原手動輸入框的樣式 */
+.cell-input { width: 100%; padding: 4px; border: 1px solid transparent; background: transparent; text-align: center; font-weight: bold; font-size: 0.9rem; color: #0f172a; outline: none; transition: border 0.2s; }
+.cell-input:focus { border-bottom: 2px solid #3b82f6; }
+
 .kmap-select { font-size: 0.9rem; padding: 4px 8px; margin-left: 8px; border: 2px solid #22c55e; border-radius: 4px; font-weight: bold; color: #15803d; cursor: pointer; }
 
 .table-actions { display: flex; gap: 10px; margin-top: 10px; }

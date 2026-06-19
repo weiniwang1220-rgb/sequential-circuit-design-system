@@ -31,11 +31,11 @@
                 <h3>3. STATE TABLE INPUT</h3>
                 <div class="input-group">
                     <label>Input Variables</label>
-                    <input type="text" id="inputVars" value="X" readonly class="readonly-input">
+                    <input type="text" id="inputVars" value="X">
                 </div>
                 <div class="input-group">
                     <label>Output Variables</label>
-                    <input type="text" id="outputVars" value="Z" readonly class="readonly-input">
+                    <input type="text" id="outputVars" value="Z">
                 </div>
                 
                 <table id="stateTable">
@@ -50,8 +50,10 @@
                     <tbody id="stateTableBody">
                         </tbody>
                 </table>
+                
                 <div class="table-actions">
-                    <button class="btn-sub" onclick="resetTable()">Reset to Example</button>
+                    <button class="btn-sub" onclick="clearTable()">Clear Table</button>
+                    <button class="btn-sub" onclick="loadExample()">Load Example</button>
                 </div>
             </div>
         </aside>
@@ -98,7 +100,7 @@
                 </div>
                 <div class="info-footer">
                     <p>• Wiring uses Bus Architecture to guarantee NO disconnected lines.</p>
-                    <p>• CLK and Feedback lines are strictly routed.</p>
+                    <p>• Empty or invalid inputs are treated as Don't Care (X).</p>
                 </div>
             </div>
         </section>
