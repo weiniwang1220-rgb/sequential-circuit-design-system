@@ -1,172 +1,179 @@
-// ====== 核心系統邏輯 ====== //
+// 預設範例資料 (符合老師講義的 A,B,C 狀態跳轉)
+const defaultExample = [
+    { present: 'A', x: '0', next: 'A', z: '0' },
+    { present: 'A', x: '1', next: 'B', z: '0' },
+    { present: 'B', x: '0', next: 'C', z: '1' },
+    { present: 'B', x: '1', next: 'A', z: '0' },
+    { present: 'C', x: '0', next: 'A', z: '1' },
+    { present: 'C', x: '1', next: 'C', z: '1' }
+];
 
-function generateSystem() {
-    const ffType = document.querySelector('input[name="ffType"]:checked').value;
-    generateEquations(ffType);
-    drawCircuit(ffType);
+// 網頁載入時立刻執行
+window.onload = function() {
+    loadExample();    // 自動填入範例資料
+    generateSystem(); // 自動產生一次結果
+};
+
+// 【修復功能】載入預設範例至表格
+function loadExample() {
+    const tbody = document.getElementById('stateTableBody');
+    tbody.innerHTML = '';
+    defaultExample.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="cell-input" value="${row.present}"></td>
+            <td style="font-weight:bold;">${row.x}</td>
+            <td><input type="text" class="cell-input" value="${row.next}"></td>
+            <td><input type="text" class="cell-input" value="${row.z}"></td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
-// 產生方程式 (Output 1)
-function generateEquations(ffType) {
-    const tbody = document.getElementById('eq-tbody');
-    const kmapContainer = document.getElementById('kmap-container');
+// 【修復功能】清空表格，供使用者自行輸入
+function clearTable() {
+    const tbody = document.getElementById('stateTableBody');
     tbody.innerHTML = '';
-    kmapContainer.innerHTML = '';
+    // 產生 6 行空白讓使用者填寫，X 的值依序為 0,1,0,1,0,1
+    for(let i = 0; i < 6; i++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="cell-input" value=""></td>
+            <td style="font-weight:bold;">${i % 2 === 0 ? '0' : '1'}</td>
+            <td><input type="text" class="cell-input" value=""></td>
+            <td><input type="text" class="cell-input" value=""></td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
 
-    let equations = [];
-    
-    // 依據選擇的 FF 類型產生對應方程式與 K-Map 視覺化
+// 主程式：處理邏輯與繪圖
+function generateSystem() {
+    const ffType = document.querySelector('input[name="ffType"]:checked').value;
+    const modelType = document.querySelector('input[name="modelType"]:checked').value;
+    processLogicAndKMap(ffType, modelType);
+    drawCircuitDiagram(ffType, modelType);
+}
+
+// 產生方程式與 K-Map (Output 1)
+function processLogicAndKMap(ffType, modelType) {
+    const eqTbody = document.getElementById('eq-tbody');
+    const kmapContainer = document.getElementById('kmap-container');
+    eqTbody.innerHTML = ''; kmapContainer.innerHTML = '';
+
     if (ffType === 'jk') {
-        equations = [
+        const jkEquations = [
             { ff: 'FF for Q1', input: 'J1', eq: "J1 = X · Q0" },
             { ff: 'FF for Q1', input: 'K1', eq: "K1 = X' + Q0" },
             { ff: 'FF for Q0', input: 'J0', eq: "J0 = Q1 · X" },
             { ff: 'FF for Q0', input: 'K0', eq: "K0 = X" }
         ];
-        kmapContainer.innerHTML = `<div style="text-align:center; padding: 20px;">
-            <p>J1 的 K-Map 狀態分群 (已化簡): J1 = X · Q0</p>
-            <table style="width:60%; margin:auto;">
-                <tr><th>Q1 \\ X,Q0</th><th>00</th><th>01</th><th>11</th><th>10</th></tr>
-                <tr><th>0</th><td>0</td><td>0</td><td style="border:2px solid green; background:#e8f5e9;">1</td><td>0</td></tr>
-                <tr><th>1</th><td>X</td><td>X</td><td>X</td><td>X</td></tr>
-            </table>
-        </div>`;
+        jkEquations.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${item.ff}</td><td>${item.input}</td><td style="color:#1976d2; font-weight:bold;">${item.eq}</td>`;
+            eqTbody.appendChild(tr);
+        });
+        kmapContainer.innerHTML = `
+            <div style="font-size:0.85rem; text-align:center;">
+                <p style="margin-bottom:8px; font-weight:600; color:#555;">K-Map Grouping Example (J1 Equation)</p>
+                <table style="width:80%; margin:auto; background: #fafafa;">
+                    <tr><th>Q1 \\ X Q0</th><th>00</th><th>01</th><th style="background:#e8f5e9; color:#2e7d32;">11</th><th>10</th></tr>
+                    <tr><th>0</th><td>0</td><td>0</td><td style="border:2px solid #2e7d32; background:#c8e6c9; font-weight:bold; color:#1b5e20;">1</td><td>0</td></tr>
+                    <tr><th>1</th><td>X</td><td>X</td><td style="border-left:2px solid #2e7d32; border-right:2px solid #2e7d32; background:#e8f5e9;">X</td><td>X</td></tr>
+                </table>
+                <p style="margin-top:6px; color:#2e7d32; font-weight:bold;">(Simplified) J1 = X · Q0</p>
+            </div>
+        `;
     } else if (ffType === 'd') {
-        // 擴充功能：D-FF 邏輯
-        equations = [
-            { ff: 'FF for Q1', input: 'D1', eq: "D1 = J1·Q1' + K1'·Q1" },
-            { ff: 'FF for Q0', input: 'D0', eq: "D0 = J0·Q0' + K0'·Q0" }
+        const dEquations = [
+            { ff: 'FF for Q1', input: 'D1', eq: "D1 = X · Q0 · Q1' + X' · Q1" },
+            { ff: 'FF for Q0', input: 'D0', eq: "D0 = X' · Q1 · Q0' + X · Q1" }
         ];
-        kmapContainer.innerHTML = `<div style="text-align:center; padding: 20px;">
-            <p>D Flip-Flop Characteristic Equation: D = Q(next)</p>
-            <p>D1 = X·Q0·Q1' + (X·Q0')·Q1</p>
-        </div>`;
+        dEquations.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${item.ff}</td><td>${item.input}</td><td style="color:#e65100; font-weight:bold;">${item.eq}</td>`;
+            eqTbody.appendChild(tr);
+        });
+        kmapContainer.innerHTML = `
+            <div style="font-size:0.85rem; text-align:center; padding:10px;">
+                <p style="font-weight:600; color:#e65100;">D Flip-Flop 轉換特性：D = Q(next)</p>
+                <p style="margin-top:5px; color:#666;">依據狀態表推導，D1 承接下一個狀態之布林代數化簡結果。</p>
+            </div>
+        `;
     }
-
-    // 渲染 Table
-    equations.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${item.ff}</td><td>${item.input}</td><td style="color:blue; font-weight:bold;">${item.eq}</td>`;
-        tbody.appendChild(tr);
-    });
 }
 
-// ====== Canvas 電路繪製引擎 (Output 2) ====== //
-
-function drawCircuit(ffType) {
+// 繪製動態電路圖 (Output 2)
+function drawCircuitDiagram(ffType, modelType) {
     const canvas = document.getElementById('circuitCanvas');
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空畫布
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.fillStyle = '#1e293b'; ctx.font = '12px Courier New';
 
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.font = '14px Arial';
-
-    // 繪製輸入線 X 和 Clock
-    drawLine(ctx, 30, 40, 450, 40);
-    ctx.fillText("X", 10, 45);
-    
-    drawLine(ctx, 30, 360, 400, 360);
-    ctx.fillText("CLK", 10, 365);
+    ctx.fillText("X", 20, 35);
+    ctx.beginPath(); ctx.moveTo(40, 30); ctx.lineTo(520, 30); ctx.stroke(); 
+    ctx.fillText("CLK", 20, 385);
+    ctx.beginPath(); ctx.moveTo(50, 380); ctx.lineTo(440, 380); ctx.stroke();
 
     if (ffType === 'jk') {
-        // 繪製兩個 JK Flip-Flop
-        drawFlipFlop(ctx, 200, 100, 'JK', 'Q1');
-        drawFlipFlop(ctx, 350, 100, 'JK', 'Q0');
+        drawJKFlipFlop(ctx, 220, 100, "Q1"); drawJKFlipFlop(ctx, 380, 100, "Q0");
+        drawANDGate(ctx, 110, 110, "AND"); drawORGate(ctx, 110, 200, "OR");
 
-        // 繪製邏輯閘 (AND, OR) 示意
-        drawANDGate(ctx, 100, 250);
-        drawLine(ctx, 150, 270, 200, 120); // J1 連線示意
+        ctx.beginPath();
+        ctx.moveTo(100, 30); ctx.lineTo(100, 115); ctx.lineTo(110, 115);
+        ctx.moveTo(150, 125); ctx.lineTo(220, 125);
+        ctx.moveTo(150, 215); ctx.lineTo(200, 215); ctx.lineTo(200, 175); ctx.lineTo(220, 175);
+        ctx.moveTo(250, 380); ctx.lineTo(250, 200); ctx.moveTo(410, 380); ctx.lineTo(410, 200);
+        ctx.stroke();
 
-        drawORGate(ctx, 100, 310);
-        drawLine(ctx, 150, 330, 200, 180); // K1 連線示意
-        
-        ctx.fillStyle = "blue";
-        ctx.fillText("Circuit rendered based on JK Equations", 150, 390);
-
+        if (modelType === 'mealy') {
+            drawORGate(ctx, 470, 260, "OR"); ctx.fillText("Z", 525, 275);
+        } else {
+            ctx.beginPath(); ctx.moveTo(440, 120); ctx.lineTo(510, 120); ctx.stroke(); ctx.fillText("Z (Q0)", 515, 125);
+        }
     } else if (ffType === 'd') {
-        // 繪製兩個 D Flip-Flop
-        drawFlipFlop(ctx, 200, 100, 'D', 'Q1');
-        drawFlipFlop(ctx, 350, 100, 'D', 'Q0');
-        
-        ctx.fillStyle = "blue";
-        ctx.fillText("Circuit rendered based on D-FF Equations", 150, 390);
+        drawDFlipFlop(ctx, 220, 110, "Q1"); drawDFlipFlop(ctx, 380, 110, "Q0");
+        ctx.beginPath();
+        ctx.moveTo(80, 30); ctx.lineTo(80, 140); ctx.lineTo(220, 140);
+        ctx.moveTo(250, 380); ctx.lineTo(250, 210); ctx.moveTo(410, 380); ctx.lineTo(410, 210);
+        ctx.stroke();
+        ctx.fillText("D-FF Mode Auto Layout", 120, 300);
     }
 }
 
-// 輔助繪圖函式
-function drawFlipFlop(ctx, x, y, type, label) {
-    ctx.strokeRect(x, y, 60, 100);
-    ctx.fillStyle = '#000';
-    if(type === 'JK') {
-        ctx.fillText("J", x + 5, y + 20);
-        ctx.fillText("K", x + 5, y + 80);
-    } else {
-        ctx.fillText("D", x + 5, y + 50);
-    }
-    // Clock triangle
-    ctx.beginPath();
-    ctx.moveTo(x, y + 90);
-    ctx.lineTo(x + 10, y + 95);
-    ctx.lineTo(x, y + 100);
-    ctx.stroke();
-
-    ctx.fillText("Q", x + 45, y + 20);
-    ctx.fillText("Q'", x + 40, y + 80);
-    ctx.fillText(label, x + 20, y - 10);
+// Canvas 繪圖輔助元件
+function drawJKFlipFlop(ctx, x, y, label) {
+    ctx.strokeRect(x, y, 60, 100); ctx.fillStyle = '#0f172a';
+    ctx.fillText("J", x + 8, y + 25); ctx.fillText("K", x + 8, y + 75);
+    ctx.fillText("Q", x + 42, y + 25); ctx.fillText("Q'", x + 35, y + 75); ctx.fillText(label, x + 20, y - 10);
+    ctx.beginPath(); ctx.moveTo(x, y + 45); ctx.lineTo(x + 10, y + 50); ctx.lineTo(x, y + 55); ctx.stroke();
 }
 
-function drawANDGate(ctx, x, y) {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 25, y);
-    ctx.arc(x + 25, y + 20, 20, -Math.PI/2, Math.PI/2);
-    ctx.lineTo(x, y + 40);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.fillText("AND", x+5, y+25);
+function drawDFlipFlop(ctx, x, y, label) {
+    ctx.strokeRect(x, y, 60, 100); ctx.fillStyle = '#0f172a';
+    ctx.fillText("D", x + 8, y + 50); ctx.fillText("Q", x + 42, y + 25); ctx.fillText("Q'", x + 35, y + 75); ctx.fillText(label, x + 20, y - 10);
+    ctx.beginPath(); ctx.moveTo(x, y + 45); ctx.lineTo(x + 10, y + 50); ctx.lineTo(x, y + 55); ctx.stroke();
 }
 
-function drawORGate(ctx, x, y) {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + 20, y, x + 40, y + 20);
-    ctx.quadraticCurveTo(x + 20, y + 40, x, y + 40);
-    ctx.quadraticCurveTo(x + 10, y + 20, x, y);
-    ctx.stroke();
-    ctx.fillText("OR", x+10, y+25);
+function drawORGate(ctx, x, y, txt) {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 15, y, x + 40, y + 15);
+    ctx.quadraticCurveTo(x + 15, y + 30, x, y + 30); ctx.quadraticCurveTo(x + 10, y + 15, x, y); ctx.stroke(); ctx.fillText(txt, x + 10, y + 18);
 }
 
-function drawLine(ctx, x1, y1, x2, y2) {
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
+function drawANDGate(ctx, x, y, txt) {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 20, y); ctx.arc(x + 20, y + 15, 15, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(x, y + 30); ctx.closePath(); ctx.stroke(); ctx.fillText(txt, x + 5, y + 18);
 }
 
-// ====== 擴充功能匯出 ====== //
-
+// 擴充功能匯出
 function downloadPNG() {
-    const canvas = document.getElementById('circuitCanvas');
-    const link = document.createElement('a');
-    link.download = 'Sequential_Circuit.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    const link = document.createElement('a'); link.download = 'Sequential_Circuit_Diagram.png';
+    link.href = document.getElementById('circuitCanvas').toDataURL("image/png"); link.click();
 }
 
 function exportPDF() {
-    const element = document.body;
-    const opt = {
-        margin:       10,
-        filename:     'Sequential_Circuit_Report.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-    html2pdf().set(opt).from(element).save();
+    html2pdf().set({
+        margin: 8, filename: '期末專題報告_時序電路設計自動化系統.pdf', image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    }).from(document.body).save();
 }
-
-// 頁面載入時初始化一次
-window.onload = () => {
-    generateSystem();
-};
