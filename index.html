@@ -50,7 +50,6 @@
                     <tbody id="stateTableBody">
                         </tbody>
                 </table>
-                
                 <div class="table-actions">
                     <button class="btn-sub" onclick="clearTable()">Clear Table</button>
                     <button class="btn-sub" onclick="loadExample()">Load Example</button>
@@ -91,16 +90,16 @@
                     <div class="zoom-controls">
                         <button class="btn-icon" onclick="zoomCanvas(0.15)">🔍 放大</button>
                         <button class="btn-icon" onclick="zoomCanvas(-0.15)">🔍 縮小</button>
-                        <button class="btn-icon" onclick="resetZoom()">[ ] 預設</button>
-                        <button class="btn-icon" onclick="downloadPNG()">💾 下載</button>
+                        <button class="btn-icon" onclick="resetZoom()">[ ] 預設視角</button>
+                        <button class="btn-icon" onclick="downloadPNG()">💾 PNG 下載</button>
                     </div>
                 </div>
-                <div class="canvas-container" style="overflow: hidden; background-color: #fafafa; border: 1px dashed #94a3b8;">
-                    <canvas id="circuitCanvas" width="650" height="420" style="cursor: grab;"></canvas>
+                <div class="canvas-container" style="overflow: hidden; background-color: #fafafa; border: 1px dashed #94a3b8; position: relative;">
+                    <canvas id="circuitCanvas" width="750" height="480" style="cursor: grab; display: block;"></canvas>
                 </div>
                 <div class="info-footer">
-                    <p>• Wiring uses Bus Architecture to guarantee NO disconnected lines.</p>
-                    <p>• Empty or invalid inputs are treated as Don't Care (X).</p>
+                    <p>• <b>拖曳畫布 (Drag)</b> 可自由移動視角。方程式 Z 已動態連接於最右側。</p>
+                    <p>• 邏輯閘與匯流排採無縫對接 (Seamless Routing) 演算法，保證不斷線。</p>
                 </div>
             </div>
         </section>
