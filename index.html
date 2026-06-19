@@ -10,7 +10,7 @@
 <body>
     <header>
         <div class="logo">💻 Sequential Circuit Design Automation System</div>
-        <div class="student-info">學生姓名：王薇霓 | 學號：1130558</div>
+        <div class="student-info">姓名：王薇霓 | 學號：1130558</div>
     </header>
 
     <div class="main-container">
@@ -50,7 +50,6 @@
                     <tbody id="stateTableBody">
                         </tbody>
                 </table>
-                
                 <div class="table-actions">
                     <button class="btn-sub" onclick="resetTable()">Reset to Example</button>
                 </div>
@@ -87,16 +86,19 @@
             <div class="section-box green-border">
                 <div class="output2-header">
                     <h3 class="green-title">OUTPUT 2: SEQUENTIAL CIRCUIT DIAGRAM</h3>
-                    <button class="btn-icon" onclick="downloadPNG()">💾 PNG 下載</button>
+                    <div class="zoom-controls">
+                        <button class="btn-icon" onclick="zoomCanvas(0.15)">🔍 放大</button>
+                        <button class="btn-icon" onclick="zoomCanvas(-0.15)">🔍 縮小</button>
+                        <button class="btn-icon" onclick="resetZoom()">[ ] 預設</button>
+                        <button class="btn-icon" onclick="downloadPNG()">💾 下載</button>
+                    </div>
                 </div>
-                
-                <div class="canvas-container">
-                    <canvas id="circuitCanvas" width="650" height="420"></canvas>
+                <div class="canvas-container" style="overflow: hidden; background-color: #fafafa; border: 1px dashed #94a3b8;">
+                    <canvas id="circuitCanvas" width="650" height="420" style="cursor: grab;"></canvas>
                 </div>
-                
                 <div class="info-footer">
-                    <p>• Circuit is actively parsed & drawn from Output 1 equations.</p>
-                    <p>• Click GENERATE below to calculate custom state table logic.</p>
+                    <p>• Wiring uses Bus Architecture to guarantee NO disconnected lines.</p>
+                    <p>• CLK and Feedback lines are strictly routed.</p>
                 </div>
             </div>
         </section>
