@@ -5,39 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sequential Circuit Design Automation System</title>
     <link rel="stylesheet" href="style.css">
+    <!-- html2pdf 用於 PDF 匯出 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+
+    <!-- =========================================================
+         頂部標題列：顯示系統名稱與學生資訊
+    ========================================================= -->
     <header>
         <div class="logo">💻 Sequential Circuit Design Automation System</div>
         <div class="student-info">姓名：王薇霓 | 學號：1130558</div>
     </header>
 
+    <!-- =========================================================
+         主要三欄佈局：輸入 / 輸出1 / 輸出2
+    ========================================================= -->
     <div class="main-container">
+
+        <!-- ── 左欄：輸入區 ── -->
         <aside class="panel input-panel">
+
+            <!-- 1. Model Type 選擇 -->
             <div class="section-box red-border">
                 <h3>1. MODEL TYPE</h3>
                 <label><input type="radio" name="modelType" value="mealy" checked> Mealy Model</label><br>
                 <label><input type="radio" name="modelType" value="moore"> Moore Model</label>
             </div>
 
+            <!-- 2. Flip-Flop Type 選擇 (JK / D) -->
             <div class="section-box red-border">
                 <h3>2. FLIP-FLOP TYPE</h3>
                 <label><input type="radio" name="ffType" value="jk" checked> JK Flip-Flop</label><br>
                 <label><input type="radio" name="ffType" value="d"> D Flip-Flop</label>
             </div>
 
+            <!-- 3. State Table 輸入區 -->
             <div class="section-box red-border">
                 <h3>3. STATE TABLE INPUT</h3>
+
+                <!-- 輸入/輸出變數名稱 (唯讀，固定為 X / Z) -->
                 <div class="input-group">
                     <label>Input Variables</label>
-                    <input type="text" id="inputVars" value="X">
+                    <input type="text" id="inputVars" value="X" readonly>
                 </div>
                 <div class="input-group">
                     <label>Output Variables</label>
-                    <input type="text" id="outputVars" value="Z">
+                    <input type="text" id="outputVars" value="Z" readonly>
                 </div>
-                
+
+                <!-- State Table：Present State 與 X 固定；Next State 與 Z 為下拉選單 -->
                 <table id="stateTable">
                     <thead>
                         <tr>
@@ -48,8 +65,11 @@
                         </tr>
                     </thead>
                     <tbody id="stateTableBody">
-                        </tbody>
+                        <!-- 由 JS 動態生成各列 -->
+                    </tbody>
                 </table>
+
+                <!-- 功能按鈕 -->
                 <div class="table-actions">
                     <button class="btn-sub" onclick="clearTable()">Clear Table</button>
                     <button class="btn-sub" onclick="loadExample()">Load Example</button>
@@ -57,9 +77,11 @@
             </div>
         </aside>
 
+        <!-- ── 中欄：Output 1（方程式 + K-map）── -->
         <section class="panel output1-panel">
             <div class="section-box blue-border">
                 <h3 class="blue-title">OUTPUT 1: FLIP-FLOP INPUT EQUATIONS</h3>
+                <!-- 方程式表格，由 renderOutput1() 填入 -->
                 <div id="equations-container">
                     <p class="sub-text">State Variables: Q1 Q0 (A=00, B=01, C=10)</p>
                     <table class="result-table">
@@ -70,21 +92,23 @@
                                 <th>Equation (Auto-Simplified)</th>
                             </tr>
                         </thead>
-                        <tbody id="eq-tbody">
-                            </tbody>
+                        <tbody id="eq-tbody"></tbody>
                     </table>
                 </div>
             </div>
-            
+
+            <!-- K-Map 顯示區，含下拉選單切換 -->
             <div class="section-box blue-border">
                 <h3 class="blue-title">K-Map (Auto Generated)</h3>
-                <div id="kmap-container">
-                    </div>
+                <div id="kmap-container"></div>
             </div>
         </section>
 
+        <!-- ── 右欄：Output 2（電路圖）── -->
         <section class="panel output2-panel">
             <div class="section-box green-border">
+
+                <!-- 標題列 + 縮放按鈕 -->
                 <div class="output2-header">
                     <h3 class="green-title">OUTPUT 2: SEQUENTIAL CIRCUIT DIAGRAM</h3>
                     <div class="zoom-controls">
@@ -94,19 +118,29 @@
                         <button class="btn-icon" onclick="downloadPNG()">💾 PNG 下載</button>
                     </div>
                 </div>
-                <div class="canvas-container" style="overflow: hidden; background-color: #fafafa; border: 1px dashed #94a3b8; position: relative;">
-                    <canvas id="circuitCanvas" width="750" height="480" style="cursor: grab; display: block;"></canvas>
+
+                <!-- Canvas 繪圖區：支援拖曳平移 -->
+                <div class="canvas-container"
+                     style="overflow:hidden; background:#fafafa;
+                            border:1px dashed #94a3b8; position:relative;">
+                    <canvas id="circuitCanvas" width="800" height="520"
+                            style="cursor:grab; display:block;"></canvas>
                 </div>
+
+                <!-- 使用說明 -->
                 <div class="info-footer">
-                    <p>• <b>拖曳畫布 (Drag)</b> 可自由移動視角。方程式 Z 已動態連接於最右側。</p>
-                    <p>• 邏輯閘與匯流排採無縫對接 (Seamless Routing) 演算法，保證不斷線。</p>
+                    <p>• <b>拖曳畫布 (Drag)</b> 可自由移動視角。</p>
+                    <p>• 所有匯流排訊號均以無縫佈線演算法連接，確保不斷線。</p>
                 </div>
             </div>
         </section>
-    </div>
+    </div><!-- /main-container -->
 
+    <!-- =========================================================
+         底部功能列
+    ========================================================= -->
     <footer>
-        <button class="btn-primary" onclick="generateSystem()">GENERATE (Calculate Logic)</button>
+        <button class="btn-primary"   onclick="generateSystem()">GENERATE (Calculate Logic)</button>
         <button class="btn-secondary" onclick="exportPDF()">📄 EXPORT REPORT (PDF)</button>
     </footer>
 
